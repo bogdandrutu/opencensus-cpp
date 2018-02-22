@@ -22,6 +22,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
+#include "absl/types/span.h"
 #include "opencensus/trace/exporter/annotation.h"
 #include "opencensus/trace/exporter/attribute_value.h"
 #include "opencensus/trace/exporter/link.h"
@@ -71,9 +72,11 @@ class SpanImpl final {
            absl::string_view name, const SpanId& parent_span_id,
            bool remote_parent);
 
-  void AddAttributes(AttributesRef attributes) LOCKS_EXCLUDED(mu_);
+  void AddAttributes(absl::Span<const AttributeRef> attributes)
+      LOCKS_EXCLUDED(mu_);
 
-  void AddAnnotation(absl::string_view description, AttributesRef attributes)
+  void AddAnnotation(absl::string_view description,
+                     absl::Span<const AttributeRef> attributes)
       LOCKS_EXCLUDED(mu_);
 
   void AddMessageEvent(exporter::MessageEvent::Type type, uint32_t message_id,
@@ -81,7 +84,8 @@ class SpanImpl final {
                        uint32_t uncompressed_message_size);
 
   void AddLink(const SpanContext& context, exporter::Link::Type type,
-               AttributesRef attributes) LOCKS_EXCLUDED(mu_);
+               absl::Span<const AttributeRef> attributes)
+      LOCKS_EXCLUDED(mu_);
 
   void SetStatus(exporter::Status&& status) LOCKS_EXCLUDED(mu_);
 

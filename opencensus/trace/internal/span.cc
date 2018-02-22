@@ -139,20 +139,20 @@ Span::Span(const SpanContext& context, SpanImpl* impl)
   }
 }
 
-void Span::AddAttribute(absl::string_view key, AttributeValueRef attribute) {
+void Span::AddAttributeInternal(AttributeRef attribute) {
   if (IsRecording()) {
-    span_impl_->AddAttributes({{key, attribute}});
+    span_impl_->AddAttributes({attribute});
   }
 }
 
-void Span::AddAttributes(AttributesRef attributes) {
+void Span::AddAttributesInternal(absl::Span<const AttributeRef> attributes) {
   if (IsRecording()) {
     span_impl_->AddAttributes(attributes);
   }
 }
 
-void Span::AddAnnotation(absl::string_view description,
-                         AttributesRef attributes) {
+void Span::AddAnnotationInternal(absl::string_view description,
+                         absl::Span<const AttributeRef> attributes) {
   if (IsRecording()) {
     span_impl_->AddAnnotation(description, attributes);
   }
@@ -178,16 +178,16 @@ void Span::AddReceivedMessageEvent(uint32_t message_id,
   }
 }
 
-void Span::AddParentLink(const SpanContext& parent_ctx,
-                         AttributesRef attributes) {
+void Span::AddParentLinkInternal(const SpanContext& parent_ctx,
+                         absl::Span<const AttributeRef> attributes) {
   if (IsRecording()) {
     span_impl_->AddLink(parent_ctx, exporter::Link::Type::kParentLinkedSpan,
                         attributes);
   }
 }
 
-void Span::AddChildLink(const SpanContext& child_ctx,
-                        AttributesRef attributes) {
+void Span::AddChildLinkInternal(const SpanContext& child_ctx,
+                        absl::Span<const AttributeRef> attributes) {
   if (IsRecording()) {
     span_impl_->AddLink(child_ctx, exporter::Link::Type::kChildLinkedSpan,
                         attributes);

@@ -38,7 +38,13 @@ class AttributeValue final {
   // The type of value held by this object.
   using Type = AttributeValueRef::Type;
 
-  explicit AttributeValue(const AttributeValueRef& ref);
+  template <typename T, typename std::enable_if<std::is_constructible<
+                            AttributeValueRef, T>::value>::type* = nullptr>
+  explicit AttributeValue(T ref)
+      : AttributeValue(AttributeValueRef(ref)) {}
+
+  explicit AttributeValue(AttributeValueRef ref);
+
   ~AttributeValue();
 
   // AttributeValue is copyable and movable.

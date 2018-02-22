@@ -48,7 +48,7 @@ TEST(AttributeValueRefTest, BoolValue) {
   EXPECT_EQ(AttributeValueRef::Type::kBool, attr.type());
   EXPECT_TRUE(attr.bool_value());
 
-  attr = false;
+  attr = AttributeValueRef(false);
   EXPECT_EQ(AttributeValueRef::Type::kBool, attr.type());
   EXPECT_FALSE(attr.bool_value());
 }
@@ -70,7 +70,7 @@ TEST(AttributeValueRefTest, Equality) {
     EXPECT_TRUE(a == b);
     EXPECT_FALSE(a != b);
     // Mismatch value.
-    b = "hi";
+    b = AttributeValueRef("hi");
     EXPECT_TRUE(a != b);
     EXPECT_FALSE(a == b);
   }
@@ -80,11 +80,11 @@ TEST(AttributeValueRefTest, Equality) {
     EXPECT_TRUE(a == b);
     EXPECT_FALSE(a != b);
     // Mismatch value.
-    b = false;
+    b = AttributeValueRef(false);
     EXPECT_TRUE(a != b);
     EXPECT_FALSE(a == b);
     // Mismatch type.
-    b = 123;
+    b = AttributeValueRef(123);
     EXPECT_TRUE(a != b);
     EXPECT_FALSE(a == b);
   }
@@ -94,7 +94,7 @@ TEST(AttributeValueRefTest, Equality) {
     EXPECT_TRUE(a == b);
     EXPECT_FALSE(a != b);
     // Mismatch value.
-    b = 456;
+    b = AttributeValueRef(456);
     EXPECT_TRUE(a != b);
     EXPECT_FALSE(a == b);
   }
@@ -108,15 +108,15 @@ TEST(AttributeValueRefTest, DebugStringIsNotEmpty) {
 
 TEST(AttributeValueRefTest, EveryConstructorWorks) {
   AttributeValueRef attr("initial value");
-  attr = 1;
+  attr = AttributeValueRef(1);
   std::cout << attr.DebugString() << "\n";
-  attr = 2;
+  attr = AttributeValueRef(2);
   std::cout << attr.DebugString() << "\n";
-  attr = true;
+  attr = AttributeValueRef(true);
   std::cout << attr.DebugString() << "\n";
-  attr = false;
+  attr = AttributeValueRef(false);
   std::cout << attr.DebugString() << "\n";
-  attr = "hello again";
+  attr = AttributeValueRef("hello again");
   std::cout << attr.DebugString() << "\n";
 }
 

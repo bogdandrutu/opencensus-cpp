@@ -85,7 +85,7 @@ TEST(SpanTest, ChildInheritsSamplingFromParent) {
 TEST(SpanTest, AddAttributesLastValueWins) {
   auto span =
       Span::StartSpan("SpanName", /*parent=*/nullptr, {nullptr, kRecordEvents});
-  span.AddAttributes({{"key", "value1"},
+  span.AddAttributes({"key", "value1"},
                       {"key", 123},
                       {"another_key", "another_value"},
                       {"key", "value2"},
@@ -101,11 +101,11 @@ TEST(SpanTest, AddAttributesLastValueWins) {
 TEST(SpanTest, AddAnnotationLastAttributeWins) {
   auto span =
       Span::StartSpan("SpanName", /*parent=*/nullptr, {nullptr, kRecordEvents});
-  span.AddAnnotation("Annotation text.", {{"key", "value1"},
+  span.AddAnnotation("Annotation text.", {"key", "value1"},
                                           {"key", 123},
                                           {"another_key", "another_value"},
                                           {"key", "value2"},
-                                          {"bool_key", true}});
+                                          {"bool_key", true});
   auto data = SpanTestPeer::ToSpanData(&span);
   span.End();
   EXPECT_EQ("value2", data.annotations()
@@ -172,17 +172,17 @@ TEST(SpanTest, FullSpanTest) {
   AttributeValueRef av("value1");
   span.AddAttribute("key1", av);
   span.AddAttribute("key2", "value2");
-  span.AddAttributes({{"key3", "value3"}, {"key4", 123}, {"key5", false}});
+  span.AddAttributes({"key3", "value3"}, {"key4", 123}, {"key5", false});
 
   span.AddAnnotation("anno1");
   span.AddAnnotation(
-      "anno2", {{"str_attr", "hello"}, {"int_attr", 123}, {"bool_attr", true}});
+      "anno2", {"str_attr", "hello"}, {"int_attr", 123}, {"bool_attr", true});
 
   span.AddSentMessageEvent(2, 3, 4);
   span.AddReceivedMessageEvent(3, 4, 5);
 
-  span.AddParentLink(linked_span1.context(), {{"attrib1", "value1"}});
-  span.AddChildLink(linked_span2.context(), {{"attrib2", 123}});
+  span.AddParentLink(linked_span1.context(), {"attrib1", "value1"});
+  span.AddChildLink(linked_span2.context(), {"attrib2", 123});
 
   span.SetStatus(StatusCode::DEADLINE_EXCEEDED, "desc");
 
@@ -334,9 +334,9 @@ TEST(SpanTest, BlankSpan) {
   // Check that it does not crash with operations on a blank span.
   span.AddSentMessageEvent(2, 3, 4);
   span.AddReceivedMessageEvent(3, 4, 5);
-  span.AddParentLink(parent.context(), {{"test", "attribute"}});
+  span.AddParentLink(parent.context(), {"test", "attribute"});
   span.AddAnnotation("This is an annotation.",
-                     {{"hello", "world"}, {"latency", 1234}});
+                     {"hello", "world"}, {"latency", 1234});
   span.AddAttribute("bool attribute", true);
   span.SetStatus(StatusCode::CANCELLED, "error text");
   span.End();

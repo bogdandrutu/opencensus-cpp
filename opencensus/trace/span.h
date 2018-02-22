@@ -19,7 +19,9 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "opencensus/trace/attribute_value_ref.h"
 #include "opencensus/trace/sampler.h"
 #include "opencensus/trace/span_context.h"
@@ -41,11 +43,8 @@ class SpanGenerator;
 class SpanImpl;
 class SpanTestPeer;
 
-// AttributesRef is an initializer list of key-value pairs, used to pass
-// Attributes to the tracing API. e.g.:
-//   AddAttributes({{"key1", "value1"}, {"key2", 123}});
-using AttributesRef =
-    std::initializer_list<std::pair<absl::string_view, AttributeValueRef>>;
+// AttributeRef is a reference to an attribute.
+using AttributeRef = std::pair<absl::string_view, AttributeValueRef>;
 
 // Options for Starting a Span.
 struct StartSpanOptions {
@@ -104,14 +103,39 @@ class Span final {
   // which case it will update the value of that attribute. If the max number of
   // attributes is exceeded, one of the previous attributes will be evicted.
   // AddAttributes is faster due to batching.
-  void AddAttribute(absl::string_view key, AttributeValueRef attribute);
-  void AddAttributes(AttributesRef attributes);
+  template <typename T, typename std::enable_if<std::is_constructible<
+                            AttributeValueRef, T>::value>::type* = nullptr>
+  void AddAttribute(absl::string_view key, T attribute) {
+    AddAttributeInternal({key, AttributeValueRef(attribute)});
+  }
+
+  // Attempts to insert attributes into the Span. e.g.:
+  //   AddAttributes({"key1", "value1"}, {"key2", 123});
+  template<typename... AttributeRefT>
+  void AddAttributes(AttributeRefT&&... attributes) {
+    // Size of an InlinedVector cannot be 0.
+    const size_t size = sizeof...(attributes) + 1;
+    //absl::InlinedVector<const AttributeRef, size> attributes_ref;
+    std::vector<const AttributeRef> attributes_ref(size);
+    AddAttributeRefToVector(&attributes_ref, std::forward(attributes)...);
+    AddAttributesInternal(attributes_ref);
+  }
 
   // Adds an Annotation to the Span. If the max number of Annotations is
   // exceeded, an Annotation will be evicted in a FIFO manner.
   // In future, there will be a limit of 4 attributes per annotation.
+  // Example:
+  //   AddAnnotation("my annotation");
+  //   AddAnnotation("retrying", {"number", 3});
+  template<typename... AttributesRefT>
   void AddAnnotation(absl::string_view description,
-                     AttributesRef attributes = {});
+                     AttributesRefT&&... attributes) {
+    const size_t size = sizeof...(attributes) + 1;
+    //absl::InlinedVector<const AttributeRef, size> attributes_ref;
+    std::vector<const AttributeRef> attributes_ref(size);
+    AddAttributeRefToVector(&attributes_ref, std::forward(attributes)...);
+    AddAnnotationInternal(description, attributes_ref);
+  }
 
   // Adds a MessageEvent to the Span. If the max number of MessageEvents is
   // exceeded, a MessageEvent will be evicted in a FIFO manner.
@@ -125,10 +149,25 @@ class Span final {
   // Adds a Link to the Span. If the max number of Links is exceeded, a Link
   // will be evicted in a FIFO manner. In future, there will be a limit of 32
   // attributes per link.
+  // Example:
+  //   AddParentLink(my_span_context);
+  //   AddParentLink(my_span_context, {"external", true});
+  template<typename... AttributesRefT>
   void AddParentLink(const SpanContext& parent_ctx,
-                     AttributesRef attributes = {});
+                     AttributesRefT&&... attributes) {
+    const size_t size = sizeof...(attributes);
+    AddParentLinkWithSize<size>(parent_ctx, std::forward(attributes)...);
+  }
+
+  // Example:
+  //   AddChildLink(my_span_context);
+  //   AddChildLink(my_span_context, {"external", true});
+  template<typename... AttributesRefT>
   void AddChildLink(const SpanContext& child_ctx,
-                    AttributesRef attributes = {});
+                    AttributesRefT&&... attributes) {
+    const size_t size = sizeof...(attributes);
+    AddChildLinkWithSize<size>(child_ctx, std::forward(attributes)...);
+  }
 
   // Sets the status of the Span. See status_code.h for canonical codes.
   void SetStatus(StatusCode canonical_code, absl::string_view message = "");
@@ -159,6 +198,60 @@ class Span final {
   // Spans that aren't sampled still have a valid SpanContext that propagates,
   // but no span_impl_.
   const SpanContext context_;
+
+  template<typename... AttributesRefT, size_t N>
+  void AddParentLinkWithSize(const SpanContext& parent_ctx,
+                     AttributesRefT&&... attributes) {
+    //const size_t size = sizeof...(attributes);
+    //absl::InlinedVector<const AttributeRef, size> attributes_ref;
+    std::vector<const AttributeRef> attributes_ref(N);
+    AddAttributeRefToVector(&attributes_ref, std::forward(attributes)...);
+    AddParentLinkInternal(parent_ctx, attributes_ref);
+  }
+
+  template<typename... AttributesRefT>
+  void AddParentLinkWithSize<0>(const SpanContext& parent_ctx,
+                     AttributesRefT&&... attributes) {
+    AddParentLinkInternal(parent_ctx, {});
+  }
+
+  template<size_t N, typename... AttributesRefT>
+  void AddChildLinkWithSize(const SpanContext& child_ctx,
+                    AttributesRefT&&... attributes) {
+    //const size_t size = sizeof...(attributes);
+    //absl::InlinedVector<const AttributeRef, size> attributes_ref;
+    std::vector<const AttributeRef> attributes_ref(N);
+    AddAttributeRefToVector(&attributes_ref, std::forward(attributes)...);
+    AddChildLinkInternal(child_ctx, attributes_ref);
+  }
+
+  template<typename... AttributesRefT>
+  void AddChildLinkWithSize<0>(const SpanContext& child_ctx, AttributesRefT&&... attributes) {
+    AddChildLinkInternal(child_ctx, {});
+  }
+
+  void AddAttributeInternal(AttributeRef attribute);
+  void AddAttributesInternal(absl::Span<const AttributeRef> attributes);
+  void AddAnnotationInternal(absl::string_view description,
+                             absl::Span<const AttributeRef> attributes);
+  void AddParentLinkInternal(const SpanContext& child_ctx,
+                             absl::Span<const AttributeRef> attributes);
+  void AddChildLinkInternal(const SpanContext& child_ctx,
+                            absl::Span<const AttributeRef> attributes);
+
+  //template<typename... AttributesRefT, size_t N>
+  //void AddAttributeRefToVector(absl::InlinedVector<const AttributeRef, N>* out,
+  template<typename... AttributesRefT>
+  void AddAttributeRefToVector(std::vector<const AttributeRef>* out,
+                               std::pair<absl::string_view, AttributeValueRef> attr,
+                               AttributesRefT&&... attributes) {
+    out->push_back(attr);
+    AddAttributeRefToVector(out, std::forward(attributes)...);
+  }
+
+  void AddAttributeRefToVector(std::vector<const AttributeRef>* out) {}
+  //template<size_t N>
+  //void AddAttributeRefToVector(absl::InlinedVector<const AttributeRef, N>* out) {}
 
   // Shared pointer to the underlying Span representation. This is nullptr for
   // Spans which are not recording events.

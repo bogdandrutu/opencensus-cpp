@@ -56,7 +56,7 @@ std::vector<exporter::SpanData::TimeEvent<T>> CopyEventWithTime(
 // of the data in it. If the same key appears multiple times, the last value
 // wins.
 std::unordered_map<std::string, exporter::AttributeValue> CopyAttributes(
-    AttributesRef attributes) {
+    absl::Span<const AttributeRef> attributes) {
   std::unordered_map<std::string, exporter::AttributeValue> out;
   for (const auto& pair : attributes) {
     auto iter_inserted = out.insert(
@@ -86,7 +86,7 @@ SpanImpl::SpanImpl(const SpanContext& context, const TraceParams& trace_params,
       has_ended_(false),
       remote_parent_(remote_parent) {}
 
-void SpanImpl::AddAttributes(AttributesRef attributes) {
+void SpanImpl::AddAttributes(absl::Span<const AttributeRef> attributes) {
   absl::MutexLock l(&mu_);
   if (!has_ended_) {
     for (const auto& attr : attributes) {
@@ -97,7 +97,7 @@ void SpanImpl::AddAttributes(AttributesRef attributes) {
 }
 
 void SpanImpl::AddAnnotation(absl::string_view description,
-                             AttributesRef attributes) {
+                             absl::Span<const AttributeRef> attributes) {
   absl::MutexLock l(&mu_);
   if (!has_ended_) {
     annotations_.AddEvent(EventWithTime<exporter::Annotation>(
@@ -120,7 +120,7 @@ void SpanImpl::AddMessageEvent(exporter::MessageEvent::Type type,
 }
 
 void SpanImpl::AddLink(const SpanContext& context, exporter::Link::Type type,
-                       AttributesRef attributes) {
+                       absl::Span<const AttributeRef> attributes) {
   absl::MutexLock l(&mu_);
   if (!has_ended_) {
     links_.AddEvent(exporter::Link(context, type, CopyAttributes(attributes)));
